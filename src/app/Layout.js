@@ -12,7 +12,7 @@ customElements.define("os-layout", class extends HTMLElement {
   disconnectedCallback(){ this.unsub?.(); }
 
   render(){
-    const { route, isNavigating } = appStore.get();
+    const { route, isNavigating, shadowMode } = appStore.get();
     const animate = this._animated ? "" : " animate";
     this.shadowRoot.innerHTML = `
       <div class="layout${animate}" data-os-widget="Layout" data-dynid="${dynId("layout")}">
@@ -27,6 +27,9 @@ customElements.define("os-layout", class extends HTMLElement {
           <div class="ha">
             <div class="navstate" data-test-id="nav-state">${isNavigating ? "Navigating..." : ""}</div>
             <div class="env">Live</div>
+            <button class="osui-btn ghost" data-test-id="btn-shadow-mode" title="Toggle Shadow Mode">
+              Shadow: <span class="mode-val">${shadowMode}</span>
+            </button>
             <button class="osui-btn ghost" data-test-id="btn-user">User</button>
           </div>
         </header>
@@ -163,6 +166,12 @@ customElements.define("os-layout", class extends HTMLElement {
     r.querySelector('[data-test-id="btn-user"]')?.addEventListener("click", () => {
       const host = r.querySelector("os-modal-host");
       Users_OpenUserModal({ modalHost: host });
+    });
+    r.querySelector('[data-test-id="btn-shadow-mode"]')?.addEventListener("click", () => {
+      const newMode = appStore.get().shadowMode === "open" ? "closed" : "open";
+      localStorage.setItem("os_shadow_mode", newMode);
+      appStore.set({ shadowMode: newMode });
+      window.location.reload();
     });
   }
 });
