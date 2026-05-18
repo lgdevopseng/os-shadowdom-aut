@@ -1,4 +1,6 @@
 import { dynId, mountStyles } from "../../runtime/utils.js";
+import { appStore } from "../../runtime/store.js";
+import { t } from "../../services/I18nService.js";
 
 customElements.define("os-fractal-nester", class extends HTMLElement {
   constructor() {
@@ -7,6 +9,15 @@ customElements.define("os-fractal-nester", class extends HTMLElement {
   }
 
   connectedCallback() {
+    this.appUnsub = appStore.subscribe(() => this.render());
+    this.render();
+  }
+
+  disconnectedCallback() {
+    this.appUnsub?.();
+  }
+
+  render() {
     const depth = parseInt(this.getAttribute("depth") || "0", 10);
     const branchingFactor = parseInt(this.getAttribute("branching-factor") || "2", 10);
     const id = this.getAttribute("fractal-id") || dynId("fractal");
@@ -15,7 +26,7 @@ customElements.define("os-fractal-nester", class extends HTMLElement {
     if (depth <= 0) {
       this.shadowRoot.innerHTML = `
         <div class="fractal-leaf" data-dynid="${id}">
-          <span class="leaf-text">Fractal Leaf</span>
+          <span class="leaf-text">${t("deep_label")} (Leaf)</span>
         </div>
       `;
       this.applyStyles(true);
@@ -25,9 +36,9 @@ customElements.define("os-fractal-nester", class extends HTMLElement {
     // Build the fractal structure: one parent node containing 'branchingFactor' children
     let childrenHtml = "";
     for (let i = 0; i < branchingFactor; i++) {
-      childrenHtml += `<os-fractal-nester 
-        depth="${depth - 1}" 
-        branching-factor="${branchingFactor}" 
+      childrenHtml += `<os-fractal-nester
+        depth="${depth - 1}"
+        branching-factor="${branchingFactor}"
         fractal-id="${id}-child-${i}">
       </os-fractal-nester>`;
     }
@@ -35,7 +46,7 @@ customElements.define("os-fractal-nester", class extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <div class="fractal-node" data-dynid="${id}">
         <div class="node-header">
-          <span class="node-depth">Depth: ${depth}</span>
+          <span class="node-depth">${t("deep_label")} ${depth}</span>
           <span class="node-id">${id.slice(0, 8)}...</span>
         </div>
         <div class="node-children">

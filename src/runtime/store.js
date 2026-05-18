@@ -9,7 +9,8 @@ const savedShadowMode = localStorage.getItem("os_shadow_mode") || "open";
 export const appStore = createStore({
   route: { name: "customers", params: {} },
   isNavigating: false,
-  shadowMode: savedShadowMode
+  shadowMode: savedShadowMode,
+  locale: "en"
 });
 
 export function setRoute(route) {

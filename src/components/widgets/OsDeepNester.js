@@ -1,4 +1,6 @@
 import { dynId, mountStyles } from "../../runtime/utils.js";
+import { appStore } from "../../runtime/store.js";
+import { t } from "../../services/I18nService.js";
 
 customElements.define("os-deep-nester", class extends HTMLElement {
   constructor() {
@@ -7,14 +9,23 @@ customElements.define("os-deep-nester", class extends HTMLElement {
   }
 
   connectedCallback() {
+    this.appUnsub = appStore.subscribe(() => this.render());
+    this.render();
+  }
+
+  disconnectedCallback() {
+    this.appUnsub?.();
+  }
+
+  render() {
     const depth = parseInt(this.getAttribute("depth") || "0", 10);
-    const label = this.getAttribute("label") || `Level ${depth}`;
+    const label = this.getAttribute("label") || t("deep_label");
 
     this.shadowRoot.innerHTML = `
       <div class="nester-node" data-dynid="${dynId("nester")}">
         <span class="node-label">${label}</span>
         <div class="node-content">
-          ${depth > 0 ? `<os-deep-nester depth="${depth - 1}" label="Level ${depth - 1}"></os-deep-nester>` : `<div class="leaf">End of Chain</div>`}
+          ${depth > 0 ? `<os-deep-nester depth="${depth - 1}" label="${t("deep_label")}"></os-deep-nester>` : `<div class="leaf">${t("deep_label")} (End)</div>`}
         </div>
       </div>
     `;

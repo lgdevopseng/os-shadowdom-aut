@@ -1,8 +1,9 @@
 import { dynId, escapeHtml, mountStyles } from "../runtime/utils.js";
 import { createStore } from "../runtime/reactive.js";
-import { bus } from "../runtime/store.js";
+import { bus, appStore } from "../runtime/store.js";
 import { Settings_LoadSettings } from "../actions/Settings/LoadSettings.js";
 import { Settings_SaveSettings } from "../actions/Settings/SaveSettings.js";
+import { t } from "../services/I18nService.js";
 
 customElements.define("os-screen-settings", class extends HTMLElement {
   constructor(){
@@ -26,13 +27,17 @@ customElements.define("os-screen-settings", class extends HTMLElement {
 
   connectedCallback(){
     this.unsub = this.screenStore.subscribe(() => { this.render(); this.wire(); });
+    this.appUnsub = appStore.subscribe(() => { this.render(); this.wire(); });
     this.render(); this.wire();
 
     bus.emit("Screen.OnInitialize", { screenId: this.screenId });
     Settings_LoadSettings({ screenStore: this.screenStore }).catch(() => {});
   }
 
-  disconnectedCallback(){ this.unsub?.(); }
+  disconnectedCallback(){
+    this.unsub?.();
+    this.appUnsub?.();
+  }
 
   showFeedback(type, text){
     this.screenStore.set({ feedback: { type, text } });
@@ -51,53 +56,56 @@ customElements.define("os-screen-settings", class extends HTMLElement {
       <div class="screen${animate}" data-os-widget="Screen" data-dynid="${dynId("scr")}">
         <div class="hdr">
           <div>
-            <div class="h1" data-test-id="screen-title">Settings</div>
-            <div class="crumbs">Home / Settings</div>
-          </div>
+            <div class="h1" data-test-id="screen-title">${t("settings")}</div>
+            <div class="crumbs">Home / ${t("settings")}</div>
+          </div]
           <div class="act">
             <button class="osui-btn ghost" data-test-id="btn-reload" ${disabled?"disabled":""}>Reload</button>
             <button class="osui-btn primary" data-test-id="btn-save" ${disabled?"disabled":""}>
-              ${s.isSaving ? "Saving..." : "Save"}
+              ${s.isSaving ? t("saving") : t("save")}
             </button>
-          </div>
-        </div>
+          </div]
+        </div]
 
         ${s.feedback ? `<os-feedback data-test-id="feedback" type="${s.feedback.type}" text="${escapeHtml(s.feedback.text)}"></os-feedback>` : ""}
 
         <os-block data-os-block="MainContent">
-          <os-section title="Preferences" data-test-id="section-preferences">
+          <os-section title="${t("preferences")}" data-test-id="section-preferences">
             <os-card data-test-id="card-settings">
               ${s.isLoading ? `
                 <os-skeleton data-test-id="skeleton"></os-skeleton>
               ` : `
                 <div class="grid">
                   <div class="osui-field">
-                    <div class="osui-label">Theme</div>
+                    <div class="osui-label">${t("theme")}</div>
                     <select class="osui-select" data-test-id="sel-theme" ${disabled?"disabled":""}>
                       ${["Light","Dark","System"].map(t => `<option ${s.settings.theme===t?"selected":""}>${t}</option>`).join("")}
                     </select>
                   </div>
 
                   <div class="osui-field">
-                    <div class="osui-label">Language</div>
-                    <select class="osui-select" data-test-id="sel-language" ${disabled?"disabled":""}>
+                    <div class="osui-label">${t("language")}</div>
+                    <div class="osui-radios" data-test-id="rad-language">
                       ${[
-                        { id:"en", label:"English" },
-                        { id:"es", label:"Spanish" },
-                        { id:"pt", label:"Portuguese" },
-                        { id:"fr", label:"French" }
-                      ].map(l => `<option value="${l.id}" ${s.settings.language===l.id?"selected":""}>${l.label}</option>`).join("")}
-                    </select>
+                        { id:"en", label:"English (EN)" },
+                        { id:"ja", label:"日本語 (JA)" }
+                      ].map(l => `
+                        <label class="rad">
+                          <input type="radio" name="lang" value="${l.id}" ${s.settings.language===l.id?"checked":""} ${disabled?"disabled":""}>
+                          <span>${l.label}</span>
+                        </label>
+                      `).join("")}
+                    </div>
                   </div>
 
                   <div class="osui-field">
-                    <div class="osui-label">Items Per Page</div>
+                    <div class="osui-label">${t("items_per_page")}</div>
                     <input class="osui-input" data-test-id="inp-items" type="number" min="5" max="50"
                       value="${escapeHtml(s.settings.itemsPerPage)}" ${disabled?"disabled":""}/>
                   </div>
 
                   <div class="osui-field">
-                    <div class="osui-label">Notifications</div>
+                    <div class="osui-label">${t("notifications")}</div>
                     <label class="chk">
                       <input data-test-id="chk-notifications" type="checkbox" ${s.settings.notifications?"checked":""} ${disabled?"disabled":""}/>
                       <span>Enable product notifications</span>
@@ -105,7 +113,7 @@ customElements.define("os-screen-settings", class extends HTMLElement {
                   </div>
 
                   <div class="osui-field">
-                    <div class="osui-label">Weekly Digest</div>
+                    <div class="osui-label">${t("weekly_digest")}</div>
                     <label class="chk">
                       <input data-test-id="chk-weekly" type="checkbox" ${s.settings.weeklyDigest?"checked":""} ${disabled?"disabled":""}/>
                       <span>Send weekly summary</span>
@@ -113,7 +121,7 @@ customElements.define("os-screen-settings", class extends HTMLElement {
                   </div>
 
                   <div class="osui-field">
-                    <div class="osui-label">Beta Features</div>
+                    <div class="osui-label">${t("beta_features")}</div>
                     <label class="chk">
                       <input data-test-id="chk-beta" type="checkbox" ${s.settings.betaFeatures?"checked":""} ${disabled?"disabled":""}/>
                       <span>Enable early access</span>
@@ -140,6 +148,9 @@ customElements.define("os-screen-settings", class extends HTMLElement {
       .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
       .chk{display:flex;align-items:center;gap:10px;font-size:13px;}
       .chk input{accent-color:var(--os-accent);}
+      .osui-radios{display:flex;gap:12px;flex-wrap:wrap;}
+      .rad{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;}
+      .rad input{accent-color:var(--os-accent);}
       @keyframes rise{
         from{opacity:0;transform:translateY(10px);}
         to{opacity:1;transform:translateY(0);}
@@ -167,7 +178,9 @@ customElements.define("os-screen-settings", class extends HTMLElement {
     });
 
     r.querySelector('[data-test-id="sel-theme"]')?.addEventListener("change", (e) => update("theme", e.target.value));
-    r.querySelector('[data-test-id="sel-language"]')?.addEventListener("change", (e) => update("language", e.target.value));
+    r.querySelectorAll('[data-test-id="rad-language"] input')?.forEach(el => {
+      el.addEventListener("change", (e) => update("language", e.target.value));
+    });
     r.querySelector('[data-test-id="inp-items"]')?.addEventListener("input", (e) => update("itemsPerPage", parseInt(e.target.value || "0", 10)));
     r.querySelector('[data-test-id="chk-notifications"]')?.addEventListener("change", (e) => update("notifications", e.target.checked));
     r.querySelector('[data-test-id="chk-weekly"]')?.addEventListener("change", (e) => update("weeklyDigest", e.target.checked));

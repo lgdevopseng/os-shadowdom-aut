@@ -1,4 +1,6 @@
 import { dynId, mountStyles } from "../../runtime/utils.js";
+import { appStore } from "../../runtime/store.js";
+import { t } from "../../services/I18nService.js";
 
 customElements.define("os-micro-frontend-demo", class extends HTMLElement {
   constructor() {
@@ -7,9 +9,19 @@ customElements.define("os-micro-frontend-demo", class extends HTMLElement {
   }
 
   connectedCallback() {
+    this.appUnsub = appStore.subscribe(() => this.render());
+    this.render();
+  }
+
+  disconnectedCallback() {
+    this.appUnsub?.();
+  }
+
+  render() {
+    const locale = appStore.get().locale || "en";
     this.shadowRoot.innerHTML = `
       <div class="mfe-container" data-dynid="${dynId("mfe")}">
-        <p class="mfe-label">Nested Micro-Frontend Simulation (Iframe + Shadow DOM)</p>
+        <p class="mfe-label">${t("iframe_title")}</p>
         <div class="mfe-grid">
           <div class="mfe-wrapper">
             <iframe id="mfe-iframe-1" sandbox="allow-scripts"></iframe>
@@ -21,17 +33,15 @@ customElements.define("os-micro-frontend-demo", class extends HTMLElement {
       </div>
     `;
 
-    this.setupIframe("mfe-iframe-1", "App Alpha");
-    this.setupIframe("mfe-iframe-2", "App Beta");
+    this.setupIframe("mfe-iframe-1", "App Alpha", locale);
+    this.setupIframe("mfe-iframe-2", "App Beta", locale);
 
     this.applyStyles();
   }
 
-  setupIframe(iframeId, appName) {
+  setupIframe(iframeId, appName, locale) {
     const iframe = this.shadowRoot.getElementById(iframeId);
-    
-    // Inject a complex structure inside the iframe
-    // We escape the inner backticks (\`) so they are treated as literal characters within the srcdoc string
+
     iframe.srcdoc = `
       <!DOCTYPE html>
       <html>
@@ -41,17 +51,28 @@ customElements.define("os-micro-frontend-demo", class extends HTMLElement {
           .container { border: 2px solid #333; padding: 10px; background: white; height: 100%; box-sizing: border-box; }
         </style>
       </head>
-      <body>
+      <body data-locale="${locale}">
         <div class="container">
           <div id="app-root"></div>
         </div>
         <script type="module">
+          window.addEventListener("message", (e) => {
+            if (e.data.type === "locale-changed") {
+              document.body.setAttribute("data-locale", e.data.locale);
+              const content = document.querySelector("os-inner-component");
+              if (content) content.requestUpdate();
+            }
+          });
+
           customElements.define("${appName.toLowerCase().replace(/\s/g, '-')}-host", class extends HTMLElement {
             constructor() {
               super();
               this.attachShadow({ mode: "open" });
             }
             connectedCallback() {
+              this.render();
+            }
+            render() {
               this.shadowRoot.innerHTML = \`
                 <div class="app-shell">
                   <h3 class="app-title">${appName}</h3>
@@ -68,18 +89,20 @@ customElements.define("os-micro-frontend-demo", class extends HTMLElement {
                   .nested-shadow-host { margin-top: 5px; }
                 </style>
               \`;
-              this.applyStyles();
-              
-              // Register the inner component
-              customElements.define("os-inner-component", class extends HTMLElement {
-                constructor() { super(); this.attachShadow({ mode: "open" }); }
-                connectedCallback() {
-                  this.shadowRoot.innerHTML = \`<div class="inner-content">Inner Shadow Content</div><style>.inner-content { color: #007bff; font-weight: bold; font-size: 12px; margin-top: 5px; }</style>\`;
-                }
-              });
             }
-            applyStyles() {
-              // Styles are already included in innerHTML
+          });
+
+          customElements.define("os-inner-component", class extends HTMLElement {
+            constructor() { super(); this.attachShadow({ mode: "open" }); }
+            requestUpdate() { this.render(); }
+            connectedCallback() { this.render(); }
+            render() {
+              const locale = document.body.getAttribute("data-locale") || "en";
+              const translations = {
+                en: "Inner Shadow Content",
+                ja: "内部シャドウコンテンツ"
+              };
+              this.shadowRoot.innerHTML = \`<div class="inner-content">\${translations[locale] || translations.en}</div><style>.inner-content { color: #007bff; font-weight: bold; font-size: 12px; margin-top: 5px; }</style>\`;
             }
           });
 
@@ -88,6 +111,10 @@ customElements.define("os-micro-frontend-demo", class extends HTMLElement {
       </body>
       </html>
     `;
+
+    setTimeout(() => {
+      iframe.contentWindow?.postMessage({ type: "locale-changed", locale }, "*");
+    }, 100);
   }
 
   applyStyles() {
@@ -120,4 +147,3 @@ customElements.define("os-micro-frontend-demo", class extends HTMLElement {
     `);
   }
 });
-
